@@ -1,0 +1,16 @@
+[general]
+name = "snippets-out-of-range"
+version = "0.1.0"
+
+[build]
+files = ["main.fix"]
+
+[[dependencies]]
+name = "cp-snippets"
+version = "*"
+path = "../"
+
+[[dependencies]]
+name = "cp-library"
+version = "0.15.2"
+git = { url = "https://github.com/tttmmmyyyy/cp-library.git" }

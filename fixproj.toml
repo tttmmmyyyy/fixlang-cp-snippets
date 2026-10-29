@@ -140,3 +140,13 @@ files = ["test.fix", "snippets.fix"]
 # name = "your-test-tool"
 # version = "1.0.0"
 # git = { url = "https://github.com/tttmmmyyyy/your-test-tool.git" }
+
+[[dependencies]]
+name = "cp-library"
+version = "0.15.2"
+git = { url = "https://github.com/tttmmmyyyy/cp-library.git" }
+
+[[test_dependencies]]
+name = "ez-scripting"
+version = "0.4.0"
+git = { url = "https://github.com/tttmmmyyyy/ez_scripting.git" }
