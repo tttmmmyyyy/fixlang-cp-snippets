@@ -18,10 +18,22 @@ namespace RollingHash {
     // assert_eq(|_|"", rh.@hash, rh2.@hash)
     // ```
 
+    // ハッシュ値の多項式の基数 b
     __RHB : U64 = 1447220154650436572_U64;
+
+    // 法 2^61 - 1 での b の逆数
     __RHBI : U64 = 2209944978905739324_U64;
+
+    // ハッシュ値の法 2^61 - 1（素数）
     __RHM : U64 = 1_U64.shift_left(61_U64) - 1_U64;
 
+    // 法 2^61 - 1 での積
+    //
+    // 制約：`a`、`b`は`[0, 2^61 - 1)`
+    //
+    // # Parameters
+    // - `a`: 掛けられる数
+    // - `b`: 掛ける数
     _mul_mod_m : U64 -> U64 -> U64 = |a, b| (
         let t = a.u128 * b.u128;
         let r = t.shift_right(61_U128).u64 + t.u64.bit_and(__RHM);
@@ -29,25 +41,54 @@ namespace RollingHash {
         r
     );
 
+    // 法 2^61 - 1 での和
+    //
+    // 制約：`a`、`b`は`[0, 2^61 - 1)`
+    //
+    // # Parameters
+    // - `a`: 足される数
+    // - `b`: 足す数
     _add_mod_m : U64 -> U64 -> U64 = |a, b| (
         let r = a + b;
         let r = if r >= __RHM { r - __RHM } else { r };
         r
     );
 
+    // 法 2^61 - 1 での符号の反転
+    //
+    // 制約：`a`は`[0, 2^61 - 1)`
+    //
+    // # Parameters
+    // - `a`: 整数
     _neg_mod_m : U64 -> U64 = |a| (
         if a == 0_U64 { 0_U64 };
         __RHM - a
     );
-    
+
+    // 文字列`str`の区間 [begin, end) と、そのハッシュ値
     type RollingHash = struct {
+        // 対象の文字列
         str : String,
+        // 区間の左端
         begin : I64,
+        // 区間の右端（この位置の文字は含まない）
         end : I64,
+        // 区間のハッシュ値。s[begin] + s[begin+1] b + ... + s[end-1] b^(end-begin-1) を 2^61 - 1 で割った余り。
         hash : U64,
-        power : U64 // b^(end-begin)
+        // b^(end-begin) を 2^61 - 1 で割った余り
+        power : U64
     };
 
+    // 文字列`str`の区間 [begin, end) のハッシュ値を計算する
+    //
+    // 制約：`0 <= begin <= end <= str.@size`
+    //
+    // 計算量：O(end - begin)
+    //
+    // # Parameters
+    // - `str`: 文字列
+    // - `begin`: 区間の左端
+    // - `end`: 区間の右端（この位置の文字は含まない）
     rolling_hash : String -> I64 -> I64 -> RollingHash = |str, begin, end| (
         if !(0 <= begin && begin <= end && end <= str.@size) {
             undefined("[RollingHash::rolling_hash] Invalid argument.")
@@ -61,7 +102,16 @@ namespace RollingHash {
         RollingHash { str, begin, end, hash, power }
     );
 
-    push_back : RollingHash -> RollingHash = |RollingHash { str, begin, end, hash, power }| (
+    // 区間の右端を 1 文字伸ばす
+    //
+    // 制約：`rh.@end < rh.@str.@size`
+    //
+    // 計算量：O(1)
+    //
+    // # Parameters
+    // - `rh`: 伸ばす区間
+    push_back : RollingHash -> RollingHash = |rh| (
+        let RollingHash { str, begin, end, hash, power } = rh;
         if end >= str.@size {
             undefined("[RollingHash::push_back] end >= size.")
         };
@@ -72,7 +122,16 @@ namespace RollingHash {
         RollingHash { str, begin, end, hash, power }
     );
 
-    pop_back : RollingHash -> RollingHash = |RollingHash { str, begin, end, hash, power }| (
+    // 区間の右端を 1 文字縮める
+    //
+    // 制約：`rh.@begin < rh.@end`
+    //
+    // 計算量：O(1)
+    //
+    // # Parameters
+    // - `rh`: 縮める区間
+    pop_back : RollingHash -> RollingHash = |rh| (
+        let RollingHash { str, begin, end, hash, power } = rh;
         if end <= begin {
             undefined("[RollingHash::pop_back] called for empty.")
         };
@@ -83,7 +142,16 @@ namespace RollingHash {
         RollingHash { str, begin, end, hash, power }
     );
 
-    push_front : RollingHash -> RollingHash = |RollingHash { str, begin, end, hash, power }| (
+    // 区間の左端を 1 文字伸ばす
+    //
+    // 制約：`0 < rh.@begin`
+    //
+    // 計算量：O(1)
+    //
+    // # Parameters
+    // - `rh`: 伸ばす区間
+    push_front : RollingHash -> RollingHash = |rh| (
+        let RollingHash { str, begin, end, hash, power } = rh;
         if begin <= 0 {
             undefined("[RollingHash::push_front] begin <= 0.")
         };
@@ -94,7 +162,16 @@ namespace RollingHash {
         RollingHash { str, begin, end, hash, power }
     );
 
-    pop_front : RollingHash -> RollingHash = |RollingHash { str, begin, end, hash, power }| (
+    // 区間の左端を 1 文字縮める
+    //
+    // 制約：`rh.@begin < rh.@end`
+    //
+    // 計算量：O(1)
+    //
+    // # Parameters
+    // - `rh`: 縮める区間
+    pop_front : RollingHash -> RollingHash = |rh| (
+        let RollingHash { str, begin, end, hash, power } = rh;
         if begin >= end {
             undefined("[RollingHash::pop_front] called for empty.")
         };
