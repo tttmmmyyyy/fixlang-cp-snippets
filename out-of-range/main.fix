@@ -3,7 +3,8 @@
 module Main;
 
 import CPLib.IO::read_i;
-import Snippets;
+import Snippets.Pell;
+import Snippets.SqrtMod;
 
 main : IO ();
 main = (

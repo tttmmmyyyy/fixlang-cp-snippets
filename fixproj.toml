@@ -20,7 +20,7 @@ license = "CC0-1.0"
 [build]
 ## Fix source files to be compiled.
 ## Merged with files specified in the command line argument.
-files = ["snippets.fix"]
+files = ["Snippets/Integer.fix", "Snippets/SqrtMod.fix", "Snippets/Pell.fix"]
 
 ## Object files to be linked.
 ## Merged with object files specified in the command line argument.
@@ -107,7 +107,7 @@ files = ["snippets.fix"]
 # Additional build options when running `fix test`.
 # Available fields are almost the same as ones in "[build]".
 [build.test]
-files = ["test.fix", "snippets.fix"]
+files = ["test.fix"]
 
 ## (For compiler developers) Enable memory check in tests.
 ## When set to `true`, memory check is performed using Valgrind.

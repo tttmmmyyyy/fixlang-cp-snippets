@@ -2,7 +2,9 @@ module Test;
 
 import CPLib.Arithmetic;
 import EZS::{cd, run_o, run_wi_oec, Context::default};
-import Snippets;
+import Snippets.Integer;
+import Snippets.Pell;
+import Snippets.SqrtMod;
 
 test : IO () = (
     test_sqrt_mod;;

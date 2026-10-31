@@ -4,12 +4,11 @@
 
 ## 使い方
 
-`snippets.fix` から、使う名前空間をコピーして解答の `main.fix` に貼ります。
+コード片は、1 つずつ貼れる単位ごとに、`Snippets` の下の 1 つのモジュール（ファイル）になっています。`Snippets/Pell.fix` なら `module Snippets.Pell;` です。
 
-- `snippets.fix` は、1 つずつ貼れる単位ごとに `namespace` で分かれています。貼るのは、`namespace` の行から、それを閉じる `}` までです。
-- 名前空間の先頭のコメントに `Include also:` の行があれば、そこに書かれた名前空間も一緒に貼ります。
+- 中身は、モジュールと同じ名前の名前空間で包んであります（`Snippets/Pell.fix` なら `namespace Pell { ... }`）。貼るのは、`namespace` の行からファイルの終わりまでです。貼った後も、名前空間 `Pell` から後ろの名前は変わらないので、`Pell::calc_pell_fundamental_solution` のような参照も、貼る前と同じように通ります。
 - 中の関数は、名前空間を書かずに呼べます（`calc_sqrts_mod(m, a)` など）。
-- 定義は [cp-library](https://github.com/tttmmmyyyy/cp-library) の関数を使います。`main.fix` には、`snippets.fix` の先頭と同じ `import` の行を書いておきます。
+- `import Snippets.X;` の行は、モジュール `X` を使うことを表します。`X` も一緒に貼り、`import Snippets.X;` の行は貼りません。それ以外の `import` の行は、`main.fix` の先頭に書いておきます。
 
 AtCoder の ABC・ARC・AGC では、生成 AI で作ったコードをコピーして使うときに、参照 URL を提出に書く必要があります（[AtCoder生成AI対策ルール](https://info.atcoder.jp/entry/llm-rules-ja)）。このリポジトリのコードには生成 AI で作ったものが含まれるので、貼るときは次の行も一緒に書いてください。
 
