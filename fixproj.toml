@@ -20,7 +20,7 @@ license = "CC0-1.0"
 [build]
 ## Fix source files to be compiled.
 ## Merged with files specified in the command line argument.
-files = ["Snippets/Integer.fix", "Snippets/SqrtMod.fix", "Snippets/Pell.fix"]
+files = ["Snippets/Integer.fix", "Snippets/SqrtMod.fix", "Snippets/Pell.fix", "Snippets/RollingHash.fix"]
 
 ## Object files to be linked.
 ## Merged with object files specified in the command line argument.

@@ -4,6 +4,7 @@ import CPLib.Arithmetic;
 import EZS::{cd, run_o, run_wi_oec, Context::default};
 import Snippets.Integer;
 import Snippets.Pell;
+import Snippets.RollingHash;
 import Snippets.SqrtMod;
 
 test : IO () = (
@@ -12,6 +13,7 @@ test : IO () = (
     test_pell_fundamental_solution;;
     test_pell_representatives;;
     test_pell_solutions;;
+    test_rolling_hash;;
     test_out_of_range;;
     test_paste;;
     pure()
@@ -179,4 +181,26 @@ test_pell_solutions : IO () = (
     assert_eq(|_|"calc_general_pell_solutions no solution 1", (calc_general_pell_solutions(2, 3).take(5).to_array : Array (I64, I64)), []);;
     assert_eq(|_|"calc_general_pell_solutions no solution 2", (calc_general_pell_solutions(10, 3).take(5).to_array : Array (I64, I64)), []);;
     pure()
+);
+
+// 区間の両端を乱数で伸び縮みさせ、更新したハッシュ値が、その区間をはじめから計算したものと一致する
+test_rolling_hash : IO () = (
+    let str = "abracadabra_mississippi";
+    let n = str.@size;
+    let start = RollingHash::rolling_hash(str, 3, 7);
+    range(0, 2000).fold_m((start, 12345_U64), |step, (rh, seed)|
+        let seed = seed * 6364136223846793005_U64 + 1442695040888963407_U64;
+        let op = seed.shift_right(33_U64) % 4_U64;
+        let rh = if op == 0_U64 && rh.@end < n { rh.RollingHash::push_back }
+            else if op == 1_U64 && rh.@begin < rh.@end { rh.RollingHash::pop_back }
+            else if op == 2_U64 && rh.@begin > 0 { rh.RollingHash::push_front }
+            else if op == 3_U64 && rh.@begin < rh.@end { rh.RollingHash::pop_front }
+            else { rh };
+        let expected = RollingHash::rolling_hash(str, rh.@begin, rh.@end);
+        assert_eq(|_|"rolling hash at step " + step.to_string, (rh.@hash, rh.@power), (expected.@hash, expected.@power));;
+        pure $ (rh, seed)
+    );;
+    // 同じ文字列の区間は、位置によらず同じハッシュ値になる
+    assert_eq(|_|"same substrings", RollingHash::rolling_hash(str, 0, 4).@hash, RollingHash::rolling_hash(str, 7, 11).@hash);;
+    assert_eq(|_|"different substrings", RollingHash::rolling_hash(str, 0, 4).@hash == RollingHash::rolling_hash(str, 1, 5).@hash, false)
 );

@@ -1,0 +1,107 @@
+module Snippets.RollingHash;
+
+namespace RollingHash {
+    // ローリングハッシュ
+    //
+    // 文字列の区間 [begin, end) のハッシュ値を持ち、区間の両端を 1 文字ずつ伸び縮みさせながら、ハッシュ値を O(1) で更新する。
+    // ハッシュ値は、法 2^61 - 1 で s[begin] + s[begin+1] b + ... + s[end-1] b^(end-begin-1)（b は固定の基数）。
+    //
+    // - `rolling_hash(str, begin, end)`：区間 [begin, end) のハッシュ値を O(end - begin) で計算する
+    // - `push_back`、`pop_back`、`push_front`、`pop_front`：区間の右端、左端を 1 文字伸ばす、縮める
+    // - `@hash`：ハッシュ値
+    //
+    // 使用例：
+    // ```fix
+    // // 長さ 2 の窓をずらすと、"ab" の位置で同じハッシュ値になる
+    // let rh = RollingHash::rolling_hash("abcab", 0, 2);
+    // let rh2 = rh.RollingHash::push_back.pop_front.RollingHash::push_back.pop_front.RollingHash::push_back.pop_front;
+    // assert_eq(|_|"", rh.@hash, rh2.@hash)
+    // ```
+
+    __RHB : U64 = 1447220154650436572_U64;
+    __RHBI : U64 = 2209944978905739324_U64;
+    __RHM : U64 = 1_U64.shift_left(61_U64) - 1_U64;
+
+    _mul_mod_m : U64 -> U64 -> U64 = |a, b| (
+        let t = a.u128 * b.u128;
+        let r = t.shift_right(61_U128).u64 + t.u64.bit_and(__RHM);
+        let r = if r >= __RHM { r - __RHM } else { r };
+        r
+    );
+
+    _add_mod_m : U64 -> U64 -> U64 = |a, b| (
+        let r = a + b;
+        let r = if r >= __RHM { r - __RHM } else { r };
+        r
+    );
+
+    _neg_mod_m : U64 -> U64 = |a| (
+        if a == 0_U64 { 0_U64 };
+        __RHM - a
+    );
+    
+    type RollingHash = struct {
+        str : String,
+        begin : I64,
+        end : I64,
+        hash : U64,
+        power : U64 // b^(end-begin)
+    };
+
+    rolling_hash : String -> I64 -> I64 -> RollingHash = |str, begin, end| (
+        if !(0 <= begin && begin <= end && end <= str.@size) {
+            undefined("[RollingHash::rolling_hash] Invalid argument.")
+        };
+        let (power, hash) = range(begin, end).fold((1_U64, 0_U64), |i, (power, hash)|
+            let byte = str[i].iget.u64;
+            let hash = hash._add_mod_m(byte._mul_mod_m(power));
+            let power = power._mul_mod_m(__RHB);
+            (power, hash)
+        );
+        RollingHash { str, begin, end, hash, power }
+    );
+
+    push_back : RollingHash -> RollingHash = |RollingHash { str, begin, end, hash, power }| (
+        if end >= str.@size {
+            undefined("[RollingHash::push_back] end >= size.")
+        };
+        let byte = str[end].iget.u64;
+        let hash = hash._add_mod_m(byte._mul_mod_m(power));
+        let power = power._mul_mod_m(__RHB);
+        let end = end + 1;
+        RollingHash { str, begin, end, hash, power }
+    );
+
+    pop_back : RollingHash -> RollingHash = |RollingHash { str, begin, end, hash, power }| (
+        if end <= begin {
+            undefined("[RollingHash::pop_back] called for empty.")
+        };
+        let power = power._mul_mod_m(__RHBI);
+        let end = end - 1;
+        let byte = str[end].iget.u64;
+        let hash = hash._add_mod_m(byte._mul_mod_m(power)._neg_mod_m);
+        RollingHash { str, begin, end, hash, power }
+    );
+
+    push_front : RollingHash -> RollingHash = |RollingHash { str, begin, end, hash, power }| (
+        if begin <= 0 {
+            undefined("[RollingHash::push_front] begin <= 0.")
+        };
+        let begin = begin - 1;
+        let byte = str[begin].iget.u64;
+        let hash = hash._mul_mod_m(__RHB)._add_mod_m(byte);
+        let power = power._mul_mod_m(__RHB);
+        RollingHash { str, begin, end, hash, power }
+    );
+
+    pop_front : RollingHash -> RollingHash = |RollingHash { str, begin, end, hash, power }| (
+        if begin >= end {
+            undefined("[RollingHash::pop_front] called for empty.")
+        };
+        let byte = str[begin].iget.u64;
+        let hash = hash._add_mod_m(byte._neg_mod_m)._mul_mod_m(__RHBI);
+        let begin = begin + 1;
+        let power = power._mul_mod_m(__RHBI);
+        RollingHash { str, begin, end, hash, power }
+    );
+}
