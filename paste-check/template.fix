@@ -1,0 +1,15 @@
+// テスト test_paste が、このファイルを main.fix に写し、tool の snip で Pell を貼ってから走らせる。
+// Pell が使う Integer と SqrtMod も一緒に貼られ、貼った後も名前空間付きの名前で参照できることを確かめる。
+module Main;
+
+import CPLib.IO::read_i;
+
+double : [a : Integer::Integer] a -> a;
+double = |x| x + x;
+
+main : IO ();
+main = (
+    let roots = 9.SqrtMod::calc_sqrts_mod(10);
+    let fundamental : (I64, I64) = Pell::calc_pell_fundamental_solution(7);
+    println((roots, fundamental, double(21)).to_string)
+);

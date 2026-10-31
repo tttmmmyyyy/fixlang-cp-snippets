@@ -1,0 +1,10 @@
+[general]
+name = "snip"
+version = "0.1.0"
+fix_version = "1.6.0"
+description = "Pastes the snippets of fixlang-cp-snippets into a Fix source file."
+license = "CC0-1.0"
+
+[build]
+files = ["main.fix", "sources.fix"]
+preliminary_commands = [["sh", "embed.sh"]]
