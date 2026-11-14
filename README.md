@@ -22,12 +22,9 @@ cp snip ~/.local/bin/
 ```sh
 snip Pell                # main.fix に Pell と、Pell が使う Integer、SqrtMod を貼る
 snip -f other.fix Pell   # 貼り先のファイルを指定する
-snip revert              # main.fix を最新のバックアップ (main.fix.snip-backup.<番号>) の中身に戻す
-snip revert --force      # snip が最後に書いた後に main.fix を編集していても戻す
+snip revert              # main.fix を最新のバックアップの中身に戻す
 snip --list              # コード片の一覧
 ```
-
-`snip` は `main.fix` の中身を消しません。書き換える前の中身を、`main.fix.snip-backup.001` から順に番号を振ったファイルに残します。`revert` も、戻す前の中身をバックアップに取るので、続けて `revert` すると前の `revert` を取り消します。
 
 ## スニペットの構成
 
