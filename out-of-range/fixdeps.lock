@@ -1,4 +1,4 @@
-proj_file_hash = "aae7aeb6d338cf5aea84bfaae76f92dc"
+proj_file_hash = "2a9270848d076e82f347c36d1018b223"
 
 [[dependencies]]
 name = "binary-heap"
@@ -20,12 +20,12 @@ rev = "bcfbde58e945e302751d81b34068885e26f7e611"
 
 [[dependencies]]
 name = "cp-library"
-version = "0.15.2"
-path = ".fixlang/deps/cp-library_0.15.2"
+version = "0.15.3"
+path = ".fixlang/deps/cp-library_0.15.3"
 
 [dependencies.git]
 repo = "https://github.com/tttmmmyyyy/cp-library.git"
-rev = "00e46ca44cb7da07cbd827f84168c782f1b3e73e"
+rev = "0da031742b24a41e6815049956c6fdfb66606d92"
 
 [[dependencies]]
 name = "cp-snippets"
@@ -43,12 +43,12 @@ rev = "089e73272bff2a97131736c54c07511425a69ed6"
 
 [[dependencies]]
 name = "hashmap"
-version = "2.1.0"
-path = ".fixlang/deps/hashmap_2.1.0"
+version = "2.2.0"
+path = ".fixlang/deps/hashmap_2.2.0"
 
 [dependencies.git]
 repo = "https://github.com/tttmmmyyyy/fixlang-hashmap.git"
-rev = "718607174a1cd5afff619558718fc583d29434b8"
+rev = "2eefc6b3bd9cbc99d066c6649db96988b8db494c"
 
 [[dependencies]]
 name = "ring-buffer"
