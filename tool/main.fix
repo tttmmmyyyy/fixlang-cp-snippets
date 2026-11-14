@@ -4,8 +4,9 @@
 //     snip [-f <ファイル>] revert      最後に貼る前の中身に戻す
 //     snip --list                      コード片の一覧を見せる
 //
-// コード片 `Snippets.X` を貼るときは、`namespace X {` の行からファイルの終わりまでを写す。名前空間から
-// 後ろの名前は貼る前と同じなので、コード片の中の参照は貼った後も同じものを指す。コード片が
+// コード片 `Snippets.X` を貼るときは、`module` と `import` の行より後ろを、名前空間 `X` で包んで写す。
+// コード片の中の名前 `f` は、リポジトリでは `Snippets.X::f`、貼った後は `Main::X::f` になり、どちらも
+// `X::f` で届くので、コード片の中の参照は貼った後も同じものを指す。コード片が
 // `import Snippets.Y;` で使うコード片 `Y` も一緒に貼る。それ以外の `import` の行は、貼り先の
 // `import` の行の後ろに足す。
 //
@@ -40,39 +41,35 @@ type Snippet = struct {
     uses : Array String,
     // それ以外の `import` の行。
     imports : Array String,
-    // `namespace` の行からファイルの終わりまで。
+    // `module` と `import` の行より後ろを、名前空間 `name` で包んだもの。
     body : String
 };
 
-// コード片のソースを、`Snippet` に分ける。形が違えば終了する。
+// コード片のソースを、`Snippet` に分ける。
 //
 // # Parameters
 // * `name` - コード片の名前
 // * `source` - コード片のソース
-parse_snippet : String -> String -> IO Snippet;
+parse_snippet : String -> String -> Snippet;
 parse_snippet = |name, source| (
     let lines = source.split("\n").to_array;
-    let header = "namespace " + name + " {";
-    let at = range(0, lines.@size).filter(|i| lines.@(i) == header).get_first;
-    if at.is_none { eprintln("error: snippet " + name + " has no line `" + header + "`");; exit(1) };
-    let at = at.as_some;
+    let at = range(0, lines.@size).filter(|i| lines.@(i).starts_with("module ") || lines.@(i).starts_with("import "))
+        .fold(0, |i, _| i + 1);
     let import_lines = lines.get_sub(0, at).to_iter.map(strip_spaces).filter(|line| line.starts_with("import ")).to_array;
     let prefix = "import Snippets.";
     let uses = import_lines.to_iter.filter(|line| line.starts_with(prefix))
         .map(|line| line.get_sub(prefix.@size, line.@size - 1)).to_array;
     let imports = import_lines.to_iter.filter(|line| !line.starts_with(prefix)).to_array;
-    let title = if at + 1 < lines.@size && lines.@(at + 1).strip_spaces.starts_with("// ") {
-        lines.@(at + 1).strip_spaces.get_sub(3, lines.@(at + 1).strip_spaces.@size)
-    } else { "" };
-    let body = lines.get_sub(at, lines.@size).to_iter.join("\n").strip_last_spaces;
-    pure $ Snippet { name : name, title : title, uses : uses, imports : imports, body : body }
+    let content = lines.get_sub(at, lines.@size).to_iter.join("\n").strip_spaces.split("\n").to_array;
+    let title = if content.@(0).starts_with("// ") { content.@(0).get_sub(3, content.@(0).@size) } else { "" };
+    let indented = content.map(|line| if line == "" { line } else { "    " + line });
+    let body = ["namespace " + name + " {"].append(indented).push_back("}").to_iter.join("\n");
+    Snippet { name : name, title : title, uses : uses, imports : imports, body : body }
 );
 
-// 埋め込んだコード片をすべて `Snippet` にする。
-all_snippets : IO (Array Snippet);
-all_snippets = snippet_sources.to_iter.fold_m([], |(name, source), snippets| (
-    pure $ snippets.push_back(*parse_snippet(name, source))
-));
+// 埋め込んだコード片をすべて `Snippet` にしたもの。
+all_snippets : Array Snippet;
+all_snippets = snippet_sources.map(|(name, source)| parse_snippet(name, source));
 
 // `names` のコード片と、それらが使うコード片を、使われるものが先に来る順に並べる。
 //
@@ -144,7 +141,7 @@ paste = |text, order| (
 main : IO () = (
     let args = *get_args;
     let args = args.get_sub(1, args.@size);
-    let snippets = *all_snippets;
+    let snippets = all_snippets;
     if args == ["--list"] {
         snippets.to_iter.fold_m((), |s, _| println(s.@name + "\t" + s.@title))
     };

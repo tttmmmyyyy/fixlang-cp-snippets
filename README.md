@@ -31,7 +31,7 @@ snip --list              # コード片の一覧
 `snip` が正しくスニペットを認識するようにするため、以下のようにスニペットを構成します。
 
 - スニペットは、単位ごとに、`Snippets` 以下の 1 つのモジュール（ファイル）にします。`Snippets/Pell.fix` なら `module Snippets.Pell;` です。
-- 中身は、モジュールと同じ名前の名前空間に入れます（`Snippets/Pell.fix` なら `namespace Pell { ... }`）。貼るのは、`namespace` の行からファイルの終わりまでです。これにより、`Pell::calc_pell_fundamental_solution` のような参照は、貼り付け後のコード中でも（多くの場合は）問題なく解決できます。
+- 中身は、名前空間で包まずに書きます。`snip` は、`module` と `import` の行より後ろを、モジュールと同じ名前の名前空間（`Snippets/Pell.fix` なら `namespace Pell { ... }`）で包んで貼ります。これにより、`Pell::calc_pell_fundamental_solution` のような参照は、貼り付け後のコード中でも（多くの場合は）問題なく解決できます。
 - `import Snippets.X;` の行は、他のスニペット `X` に依存することを `snip` に伝えます。
 
 ## テスト
