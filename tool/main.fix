@@ -1,7 +1,8 @@
 // fixlang-cp-snippets のコード片を、Fix のソースファイルに貼る道具。
 //
 //     snip [-f <ファイル>] <名前>...   コード片を貼る (ファイルを省くと main.fix)
-//     snip [-f <ファイル>] revert      最後に貼る前の中身に戻す
+//     snip [-f <ファイル>] revert [--force]
+//                                      最新のバックアップの中身に戻す
 //     snip --list                      コード片の一覧を見せる
 //
 // コード片 `Snippets.X` を貼るときは、`module` と `import` の行より後ろを、名前空間 `X` で囲んで写す。
@@ -10,7 +11,11 @@
 // 指す。コード片が `import Snippets.Y;` で使うコード片 `Y` も一緒に貼る。それ以外の `import` の行は、
 // 貼り先の `import` の行の後ろに足す。
 //
-// 貼る前に、貼り先の中身を `<ファイル>.snip-backup` に写しておく。`revert` はそれを貼り先に書き戻す。
+// `snip` は、貼り先のファイルの中身を消さない。貼り先を書き換える前に、その中身を新しいバックアップ
+// `<ファイル>.snip-backup.<番号>` (番号は 001 から順に振る) に写し、書いた中身の写しを
+// `<ファイル>.snip-last` に置く。`revert` は、貼り先を最新のバックアップの中身に戻す。戻す前の中身も
+// バックアップに取るので、続けて `revert` すると、前の `revert` を取り消す。貼り先が `snip` の最後に
+// 書いた中身から変わっていたら、`--force` を付けたときだけ戻す。
 module Main;
 
 import Snip.Sources;
@@ -23,13 +28,83 @@ usage : String;
 usage = [
     "usage:",
     "  snip [-f <file>] <name>...   paste the snippets into the file (main.fix by default)",
-    "  snip [-f <file>] revert      restore the file as it was before the last paste",
+    "  snip [-f <file>] revert [--force]",
+    "                               restore the file to its latest backup",
     "  snip --list                  list the snippets"
 ].to_iter.join("\n");
 
-// 貼り先 `file` の、貼る前の中身を写しておくファイルのパス。
-backup_path : String -> String;
-backup_path = |file| file + ".snip-backup";
+// 貼り先 `file` の `n` 番目のバックアップのパス。番号は 3 桁にゼロ埋めする。
+//
+// # Parameters
+// * `file` - 貼り先のパス
+// * `n` - バックアップの番号 (1 から)
+backup_path : String -> I64 -> String;
+backup_path = |file, n| (
+    let digits = n.to_string;
+    file + ".snip-backup." + "000".get_sub(0, max(0, 3 - digits.@size)) + digits
+);
+
+// `snip` が貼り先 `file` に最後に書いた中身の写しのパス。
+last_written_path : String -> String;
+last_written_path = |file| file + ".snip-last";
+
+// 貼り先 `file` のバックアップの数。バックアップは 1 番から隙間なく並ぶ。
+count_backups : String -> IO I64;
+count_backups = |file| loop_m(0, |n| (
+    let exists = (*read_file_string(backup_path(file, n + 1)).to_result).is_ok;
+    pure $ if exists { continue $ n + 1 } else { break $ n }
+));
+
+// 貼り先 `file` を、中身 `content` に書き換える。書き換える前の中身 `before` を新しいバックアップに写し、
+// 書いた中身の写しを `last_written_path(file)` に置く。バックアップのパスを返す。
+//
+// # Parameters
+// * `file` - 貼り先のパス
+// * `before` - 貼り先のいまの中身
+// * `content` - 書く中身
+rewrite : String -> String -> String -> IO String;
+rewrite = |file, before, content| (
+    let backup = backup_path(file, *count_backups(file) + 1);
+    write_file_string(backup, before).try(exit_with_msg(1));;
+    write_file_string(file, content).try(exit_with_msg(1));;
+    write_file_string(last_written_path(file), content).try(exit_with_msg(1));;
+    pure $ backup
+);
+
+// `snip revert`: 貼り先 `file` を、最新のバックアップの中身に戻す。
+//
+// 貼り先が `snip` の最後に書いた中身から変わっていたら、`force` のときだけ戻す。戻さないときは、
+// 最新のバックアップと、変わったところを見るコマンドを示して終了する。
+//
+// # Parameters
+// * `file` - 貼り先のパス
+// * `force` - 貼り先が変わっていても戻すか
+revert : String -> Bool -> IO ();
+revert = |file, force| (
+    let count = *count_backups(file);
+    if count == 0 { exit_with_msg(1, "error: " + file + " has no backup to revert to") };
+    let latest = backup_path(file, count);
+    let current = *read_file_string(file).try(exit_with_msg(1));
+    let last = *read_file_string(last_written_path(file)).to_result;
+    if !force && !(last.is_ok && last.as_ok == current) {
+        let command = if file == "main.fix" { "snip revert" } else { "snip -f " + file + " revert" };
+        eprintln("error: " + file + " has changed since snip last wrote it, so snip leaves it as it is");;
+        eprintln("  the latest backup: " + latest);;
+        when(last.is_ok, eprintln("  to see the changes: diff " + last_written_path(file) + " " + file));;
+        eprintln("  to revert it anyway: " + command + " --force (this backs up the current content first)");;
+        exit(1)
+    };
+    let restored = *read_file_string(latest).try(exit_with_msg(1));
+    let backup = *rewrite(file, current, restored);
+    println("reverted " + file + " to " + latest + "; the content before reverting is in " + backup)
+);
+
+// 空白文字をすべて除いた文字列。2 つの行が空白の違いを除いて同じかを比べるのに使う。
+//
+// # Parameters
+// * `line` - 行
+remove_spaces : String -> String;
+remove_spaces = |line| line.to_iter_bytes.filter(|b| b != ' ' && b != '\t' && b != '\r').map(String::from_U8).concat_iter;
 
 // コード片 1 つを、貼るのに要る部分に分けたもの。
 type Snippet = struct {
@@ -103,7 +178,7 @@ resolve = |snippets, names| (
 
 // ソース `text` に、コード片 `order` を貼る。
 //
-// 貼り先にもう `namespace X {` の行があるコード片は飛ばす。貼るコード片は、`main` の定義の前に、
+// 行がもうあるかは、空白文字を除いて比べる。貼り先にもう `namespace X {` の行があるコード片は飛ばす。貼るコード片は、`main` の定義の前に、
 // 参照 URL の行に続けて置く (`main` がなければファイルの終わりに置く)。参照 URL の行がもうあれば、
 // それは書かない。コード片の `import` の行のうち、貼り先にないものを、貼り先の最後の `import` の行の
 // 後ろに足す。`import` の行がなければ、`module` の行の後ろに足す。
@@ -116,7 +191,8 @@ resolve = |snippets, names| (
 paste : String -> Array Snippet -> (String, Array String);
 paste = |text, order| (
     let lines = text.split("\n").to_array;
-    let has_line = |line : String| lines.to_iter.check_any(|l| l.strip_last_spaces == line);
+    let keys = lines.map(remove_spaces);
+    let has_line = |line : String| (let key = remove_spaces(line); keys.to_iter.check_any(|k| k == key));
     let order = order.to_iter.filter(|s| !has_line("namespace " + s.@name + " {")).to_array;
     if order.@size == 0 { (text, []) };
     let imports = order.to_iter.flat_map(|s| s.@imports.to_iter).fold([], |line, imports| (
@@ -148,17 +224,12 @@ main : IO () = (
     let (file, names) = if args.@size >= 2 && args.@(0) == "-f" {
         (args.@(1), args.get_sub(2, args.@size))
     } else { ("main.fix", args) };
-    if names == ["revert"] {
-        let backup = *read_file_string(backup_path(file)).try(|_| exit_with_msg(1, "error: no backup of " + file + " to revert to"));
-        write_file_string(file, backup).try(exit_with_msg(1));;
-        println("reverted " + file + " to the content before the last paste")
-    };
+    if names == ["revert"] || names == ["revert", "--force"] { revert(file, names.@size == 2) };
     if names.@size == 0 || names.to_iter.check_any(|n| n.starts_with("-")) { eprintln(usage);; exit(1) };
     let order = *resolve(snippets, names);
     let text = *read_file_string(file).try(exit_with_msg(1));
     let (pasted, names) = paste(text, order);
     if names.@size == 0 { println("nothing to paste: " + file + " has every snippet already") };
-    write_file_string(backup_path(file), text).try(exit_with_msg(1));;
-    write_file_string(file, pasted).try(exit_with_msg(1));;
-    println("pasted " + names.to_iter.join(", ") + " into " + file)
+    let backup = *rewrite(file, text, pasted);
+    println("pasted " + names.to_iter.join(", ") + " into " + file + "; the content before pasting is in " + backup)
 );

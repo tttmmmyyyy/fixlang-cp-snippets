@@ -16,6 +16,8 @@ test : IO () = (
     test_rolling_hash;;
     test_out_of_range;;
     test_paste;;
+    test_revert;;
+    test_paste_skips_present;;
     pure()
 );
 
@@ -40,23 +42,66 @@ test_out_of_range : IO () = (
     ezs.cd("..")
 );
 
-// tool の snip で Pell を貼ったソースが、ビルドできて、貼る前と同じ答えを返す。snip revert で貼る前に戻る
+// tool の snip で Pell を貼ったソースが、ビルドできて、貼る前と同じ答えを返す。貼る前の中身はバックアップに残る
 test_paste : IO () = (
     let ezs = EZS::Context::default;
     ezs.cd("tool");;
     ezs.run_o(["fix", "build", "-o", "snip"]);;
     ezs.cd("../paste-check");;
+    ezs.run_o(["sh", "-c", "rm -f main.fix.snip-*"]);;
     ezs.run_o(["cp", "template.fix", "main.fix"]);;
     let out = *ezs.run_o(["../tool/snip", "Pell"]);
-    assert_eq(|_|"snip: " + out, out, "pasted Integer, SqrtMod, Pell into main.fix\n");;
+    assert_eq(|_|"snip: " + out, out, "pasted Integer, SqrtMod, Pell into main.fix; the content before pasting is in main.fix.snip-backup.001\n");;
     let (out, err, code) = *ezs.run_wi_oec(["fix", "run"], "");
     assert_eq(|_|"pasted: " + err, (code, out), (0_U8, "([3, 7], (8, 3), 42)\n"));;
-    ezs.run_o(["../tool/snip", "revert"]);;
-    let reverted = *read_file_string("main.fix").try(exit_with_msg(1));
-    let template = *read_file_string("template.fix").try(exit_with_msg(1));
-    assert_eq(|_|"reverted", reverted, template);;
+    assert_eq(|_|"backup", *read_file("main.fix.snip-backup.001"), *read_file("template.fix"));;
     ezs.cd("..")
 );
+
+// snip revert は貼り先を最新のバックアップに戻し、戻す前の中身もバックアップに取る。続けて revert すると、
+// 前の revert を取り消す。snip が書いた後に変わった貼り先は、--force を付けたときだけ戻す
+test_revert : IO () = (
+    let ezs = EZS::Context::default;
+    ezs.cd("paste-check");;
+    ezs.run_o(["sh", "-c", "rm -f main.fix.snip-*"]);;
+    ezs.run_o(["cp", "template.fix", "main.fix"]);;
+    let template = *read_file("template.fix");
+    ezs.run_o(["../tool/snip", "Integer"]);;
+    let pasted = *read_file("main.fix");
+    ezs.run_o(["../tool/snip", "revert"]);;
+    assert_eq(|_|"reverted", *read_file("main.fix"), template);;
+    assert_eq(|_|"backup before reverting", *read_file("main.fix.snip-backup.002"), pasted);;
+    ezs.run_o(["../tool/snip", "revert"]);;
+    assert_eq(|_|"reverted twice", *read_file("main.fix"), pasted);;
+    let edited = pasted + "// edited\n";
+    write_file_string("main.fix", edited).try(exit_with_msg(1));;
+    let (_, _, code) = *ezs.run_wi_oec(["../tool/snip", "revert"], "");
+    assert_eq(|_|"revert after an edit", (code, *read_file("main.fix")), (1_U8, edited));;
+    ezs.run_o(["../tool/snip", "revert", "--force"]);;
+    assert_eq(|_|"forced", *read_file("main.fix"), template);;
+    assert_eq(|_|"backup of the edit", *read_file("main.fix.snip-backup.004"), edited);;
+    ezs.cd("..")
+);
+
+// 貼り先にある `namespace X {` の行は、インデントや空白が違っても見つけ、そのコード片を貼らない
+test_paste_skips_present : IO () = (
+    let ezs = EZS::Context::default;
+    ezs.cd("paste-check");;
+    ezs.run_o(["sh", "-c", "rm -f main.fix.snip-*"]);;
+    ezs.run_o(["cp", "template.fix", "main.fix"]);;
+    ezs.run_o(["../tool/snip", "Integer"]);;
+    let pasted = *read_file("main.fix");
+    let reformatted = pasted.split("\n").map(|line| if line == "namespace Integer {" { "  namespace  Integer{" } else { line }).join("\n");
+    write_file_string("main.fix", reformatted).try(exit_with_msg(1));;
+    let out = *ezs.run_o(["../tool/snip", "Integer"]);
+    assert_eq(|_|"snip: " + out, out, "nothing to paste: main.fix has every snippet already\n");;
+    assert_eq(|_|"unchanged", *read_file("main.fix"), reformatted);;
+    ezs.cd("..")
+);
+
+// パス `path` のファイルの中身。読めなければ終了する
+read_file : String -> IO String;
+read_file = |path| read_file_string(path).try(exit_with_msg(1));
 
 // 平方根を、総当たりで求めたものと比べる
 test_sqrt_mod : IO () = (
