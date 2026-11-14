@@ -1,3 +1,4 @@
 .fixlang/
 *.out
 out-of-range/.fixlang/
+*.snip-backup

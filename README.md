@@ -22,6 +22,7 @@ cp snip ~/.local/bin/
 ```sh
 snip Pell                # main.fix に Pell と、Pell が使う Integer、SqrtMod を貼る
 snip -f other.fix Pell   # 貼り先のファイルを指定する
+snip revert              # 最後に貼る前の main.fix に戻す (貼る前の中身は main.fix.snip-backup にある)
 snip --list              # コード片の一覧
 ```
 

@@ -1,12 +1,15 @@
 // fixlang-cp-snippets のコード片を、Fix のソースファイルに貼る道具。
 //
 //     snip [-f <ファイル>] <名前>...   コード片を貼る (ファイルを省くと main.fix)
+//     snip [-f <ファイル>] revert      最後に貼る前の中身に戻す
 //     snip --list                      コード片の一覧を見せる
 //
 // コード片 `Snippets.X` を貼るときは、`namespace X {` の行からファイルの終わりまでを写す。名前空間から
 // 後ろの名前は貼る前と同じなので、コード片の中の参照は貼った後も同じものを指す。コード片が
 // `import Snippets.Y;` で使うコード片 `Y` も一緒に貼る。それ以外の `import` の行は、貼り先の
 // `import` の行の後ろに足す。
+//
+// 貼る前に、貼り先の中身を `<ファイル>.snip-backup` に写しておく。`revert` はそれを貼り先に書き戻す。
 module Main;
 
 import Snip.Sources;
@@ -19,8 +22,13 @@ usage : String;
 usage = [
     "usage:",
     "  snip [-f <file>] <name>...   paste the snippets into the file (main.fix by default)",
+    "  snip [-f <file>] revert      restore the file as it was before the last paste",
     "  snip --list                  list the snippets"
 ].to_iter.join("\n");
+
+// 貼り先 `file` の、貼る前の中身を写しておくファイルのパス。
+backup_path : String -> String;
+backup_path = |file| file + ".snip-backup";
 
 // コード片 1 つを、貼るのに要る部分に分けたもの。
 type Snippet = struct {
@@ -143,11 +151,17 @@ main : IO () = (
     let (file, names) = if args.@size >= 2 && args.@(0) == "-f" {
         (args.@(1), args.get_sub(2, args.@size))
     } else { ("main.fix", args) };
+    if names == ["revert"] {
+        let backup = *read_file_string(backup_path(file)).try(|_| exit_with_msg(1, "error: no backup of " + file + " to revert to"));
+        write_file_string(file, backup).try(exit_with_msg(1));;
+        println("reverted " + file + " to the content before the last paste")
+    };
     if names.@size == 0 || names.to_iter.check_any(|n| n.starts_with("-")) { eprintln(usage);; exit(1) };
     let order = *resolve(snippets, names);
     let text = *read_file_string(file).try(exit_with_msg(1));
     let (pasted, names) = paste(text, order);
     if names.@size == 0 { println("nothing to paste: " + file + " has every snippet already") };
+    write_file_string(backup_path(file), text).try(exit_with_msg(1));;
     write_file_string(file, pasted).try(exit_with_msg(1));;
     println("pasted " + names.to_iter.join(", ") + " into " + file)
 );
