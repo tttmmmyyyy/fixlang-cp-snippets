@@ -4,9 +4,10 @@
 //     snip [-f <ファイル>] revert      最後に貼る前の中身に戻す
 //     snip --list                      コード片の一覧を見せる
 //
-// コード片 `Snippets.X` を貼るときは、`module` と `import` の行より後ろを、名前空間 `X` で包んで写す。
-// コード片の中の名前 `f` は、リポジトリでは `Snippets.X::f`、貼った後は `Main::X::f` になり、どちらも
-// `X::f` で届くので、コード片の中の参照は貼った後も同じものを指す。コード片が
+// コード片 `Snippets.X` を貼るときは、`module` と `import` の行より後ろを、名前空間 `X` で囲んで写す。
+// コード片で定義した `f` の完全な名前は、リポジトリでは `Snippets.X::f`、モジュール `Main` に貼った後は
+// `Main::X::f` で、どちらも `X::f` と書いて参照できる。そのため、コード片の中の参照は貼った後も同じものを
+// 指す。コード片が
 // `import Snippets.Y;` で使うコード片 `Y` も一緒に貼る。それ以外の `import` の行は、貼り先の
 // `import` の行の後ろに足す。
 //
@@ -33,7 +34,7 @@ backup_path = |file| file + ".snip-backup";
 
 // コード片 1 つを、貼るのに要る部分に分けたもの。
 type Snippet = struct {
-    // モジュールの名前から `Snippets.` を除いたもの。中身を包む名前空間の名前でもある。
+    // モジュールの名前から `Snippets.` を除いたもの。中身を囲む名前空間の名前でもある。
     name : String,
     // 先頭のコメントの 1 行目 (`// ` を除いたもの)。
     title : String,
@@ -41,7 +42,7 @@ type Snippet = struct {
     uses : Array String,
     // それ以外の `import` の行。
     imports : Array String,
-    // `module` と `import` の行より後ろを、名前空間 `name` で包んだもの。
+    // `module` と `import` の行より後ろを、名前空間 `name` で囲んだもの。
     body : String
 };
 
